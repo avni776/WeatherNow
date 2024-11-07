@@ -1,0 +1,184 @@
+syms x Rai(x) dRai(x) intRai(x)
+Rai(x) = -0.01392*x^3+0.332*x^2 -1.962*x + 3.644;
+% R2 score = 0.99557 from matlab curve fitter
+
+coeff = [-0.01392,0.332,-1.962,3.644];
+dRai(x) = diff(Rai(x),x);
+intRai(x) = int(Rai(x),x);
+
+v0=input("Enter the value of v0 in m3/min:");
+Ca0=input("Enter the value of Ca0 mM:");
+Caf = input("Enter the value of Caf mM:");
+option = input("1 : single PFR \n2 : single CSTR \n3 : Two CSTR of any size \n4 : A combination of PFR & CSTR \n5 : PFR with recycle \nEnter your option: ");
+
+if (option==1)
+    V1pfr = double(v0 * (subs(intRai,Ca0) - subs(intRai,Caf)));
+    fprintf("Required volume of reactor is %d m3",V1pfr);
+    a = Caf:0.01:Ca0;
+    b = polyval(coeff,a);
+    
+    area(a,b);
+    hold on;
+    a = 0.1:0.01:10;
+    plot(a,polyval(coeff,a),'k','LineWidth',2);
+    xlabel('C_A(mol/litre)');
+    ylabel('1/(-r_a)');
+    legend('PFR','1/(-r_a)')
+
+
+elseif (option ==2)
+    V2cstr = double(v0 * (Ca0 - Caf) * Rai(Caf));
+    fprintf("Required volume of reactor is %d m3",V2cstr);
+    a = Caf:0.01:Ca0;
+    y = polyval(coeff,Caf);
+    b = polyval(coeff,a)*0 + y;
+    area(a,b,'FaceColor','y');
+    hold on
+    a = 0.1:0.01:10;
+    plot(a,polyval(coeff,a),'k','LineWidth',2);
+    legend('CSTR','1/(-r_a)')
+    xlabel('C_A(mol/litre)');
+    ylabel('1/(-r_a)');
+
+
+elseif (option==3)
+    x1= double(solve((Rai(Ca0)-Rai(x))/(x-Ca0)==dRai(x),x));
+    x1=x1(x1>Caf&x1<Ca0);
+    V31 = double(v0.* (Ca0 - x1).* Rai(x1));
+    fprintf("Required volume of 1st CSTR reactor is %d m3 \n",V31);
+    V32 =  double(v0.* (subs(intRai,Ca0) - subs(intRai,x1)));
+    fprintf("Required volume of 2nd CSTR reactor is %d m3 \n",V32);
+    V3=V31+V32;
+    
+    VOLcstr1=V31;
+    VOLcstr2=V32;
+
+    a = Caf:0.01:x1;
+    y = polyval(coeff,Caf);
+    b = polyval(coeff,a)*0 + y;
+    area(a,b,'FaceColor','g');
+    hold on;
+    a=x1:0.01:Ca0;
+    y = polyval(coeff,x1);
+    b = polyval(coeff,a)*0 + y;
+    area(a,b,'FaceColor','m');
+    a = 0.1:0.01:10;
+    plot(a,polyval(coeff,a),'k','LineWidth',2);
+    xlabel('C_A(mol/litre)');
+    ylabel('1/(-r_A)');
+    legend('CSTR1','CSTR2','1/(-r_A)');
+
+
+elseif (option ==4)
+    x2 = double(solve(dRai==0, x));
+    x2=x2(x2>Caf&x2<Ca0);
+    if(x2<Caf) 
+        VOLpfr =0;
+        VOLcstr =  double(v0 * (Ca0 - Caf) * Rai(Caf));
+        a = Caf:0.01:Ca0;
+        y = polyval(coeff,Caf);
+        b = polyval(coeff,a)*0 + y;
+        area(a,b,'FaceColor','r');
+        hold on
+        a = 0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+        legend('cstr','1/ra')
+        xlabel('Ca(mol/litre)');
+        ylabel('1/(-ra)');
+    elseif(x2>Ca0)
+        VOLcstr=0;
+        VOLpfr= double(v0 * (subs(intRai,Ca0) - subs(intRai,Caf)));
+        a = Caf:0.01:Ca0;
+        b = polyval(coeff,a);
+        
+        area(a,b);
+        hold on;
+        a = 0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+        xlabel('C_A(mol/litre)');
+        ylabel('1/(-ra)');
+        legend('PFR','1/(-ra)')
+    
+    else
+        x2 = double(solve(dRai==0, x));
+        x2=x2(x2>Caf&x2<Ca0);
+        V4 = double(v0 * (Ca0 - x2) * Rai(x2))+ double(v0 * (subs(intRai,x2) - subs(intRai,Caf)));
+        VOLpfr =double(v0 * (subs(intRai,x2) - subs(intRai,Caf)));
+        fprintf("Required volume of PFR reactor is %d m3 \n",VOLpfr);
+        VOLcstr =  double(v0 * (Ca0 - x2) * Rai(x2));
+        fprintf("Required volume of CSTR reactor is %d m3 \n",VOLcstr);
+        a = x2:0.01:Ca0;
+       
+        y = Rai(x2);
+        b = polyval(coeff,a)*0 + y;
+    
+        area(a,b);
+        hold on;
+    
+        a = Caf:0.01:x2;
+        b = polyval(coeff,a);
+        area(a,b,'FaceColor','r');
+    
+        a = 0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+    
+        xlabel('C_A(mol/litre)');
+        ylabel('1/(-r_A)');
+        legend('cstr','PFR','1/(-r_A)')
+    end
+
+
+elseif(option ==5) 
+    x2 = double(solve(dRai(x)==0, x));
+    x2=x2(x2>0.1&x2<10);
+    if(x2<Caf)
+        Recycle_ratio ='infinite';
+        V5cstr =  double(v0 * (Ca0 - Caf) * Rai(Caf));
+        a = Caf:0.01:Ca0;
+        y = polyval(coeff,Caf);
+        b = polyval(coeff,a)*0 + y;
+        area(a,b,'FaceColor','r');
+        hold on
+        a = 0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+        legend('cstr','1/ra')
+        xlabel('Ca(mol/litre)');
+        ylabel('1/(-ra)');
+    elseif(x2>Ca0)
+        Recycle_ratio=0;
+        V5pfr = double(v0 * (intRai(Ca0) -intRai(Caf)));
+        a = Caf:0.01:Ca0;
+        b = polyval(coeff,a);
+        
+        area(a,b);
+        hold on;
+        a = 0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+        xlabel('C_A(mol/litre)');
+        ylabel('1/(-ra)');
+        legend('PFR','1/(-ra)')
+    else 
+        eqn =(x-Caf)*Rai(x)-int(Rai(x) ,Caf,x);
+
+        x3 = vpasolve(eqn, x, [Caf+0.01, Ca0-0.01]);
+        Recycle_ratio = (Ca0-x3)/(x3-Caf);
+        Rai_av = Rai(x3);
+        TotalVolfrwithrecycle = (Ca0-Caf)*v0*Rai_av ;
+        fprintf("Required volume of PFR reactor with recycle is %d m3 \n",TotalVolfrwithrecycle);
+        
+        a = Caf:0.01:Ca0;
+        y = Rai(x3);
+        b = polyval(coeff,a)*0 + y;
+        area(a,b,'FaceColor','b');
+        hold on
+        a=0.1:0.01:10;
+        plot(a,polyval(coeff,a),'k','LineWidth',2);
+        xlabel('C_A(mol/litre)');
+        ylabel('1/(-r_A)');
+        legend('prf with recycle','1/(-r_A)')
+
+    end
+
+else 
+    fprintf("Wrong option please select the correct option");
+end
